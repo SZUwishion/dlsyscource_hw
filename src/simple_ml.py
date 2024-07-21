@@ -20,7 +20,7 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
@@ -48,7 +48,17 @@ def parse_mnist(image_filename, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR CODE
-    pass
+    with gzip.open(image_filename, 'rb') as imgf:
+        imgf.read(16)  # 跳过头信息
+        images = np.frombuffer(imgf.read(), dtype=np.uint8).reshape(-1, 784).astype(np.float32)
+        images -= np.min(images)
+        images /= np.max(images)
+
+    with gzip.open(label_filename, 'rb') as labelf:
+        labelf.read(8)  # 跳过头信息
+        labels = np.frombuffer(labelf.read(), dtype=np.uint8)
+
+    return images, labels
     ### END YOUR CODE
 
 
@@ -68,7 +78,12 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    # print(Z)
+    exp_Z = np.exp(Z - np.max(Z, axis=1, keepdims=True))
+    # print(exp_Z)
+    Z_sum = np.sum(exp_Z, axis=1, keepdims=True)
+    Z_softmax = exp_Z / Z_sum
+    return -np.mean(np.log(Z_softmax[np.arange(Z.shape[0]), y]))
     ### END YOUR CODE
 
 
@@ -91,8 +106,38 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    # print(Z)
+    for start_idx in range(0, X.shape[0], batch):
+        end_idx = min(start_idx + batch, X.shape[0])
+        X_batch = X[start_idx:end_idx]
+        y_batch = y[start_idx:end_idx]
+
+        Z_batch = X_batch @ theta
+        # print(Z_batch)
+        # Z_batch -= np.max(Z_batch, axis=1, keepdims=True)
+        Z_exp = np.exp(Z_batch)
+        Z_sum = np.sum(Z_exp, axis=1, keepdims=True)
+        # print(Z_exp)
+        # print(Z_sum)
+        Z_softmax = Z_exp / Z_sum
+        Z_softmax[np.arange(X_batch.shape[0]), y_batch] -= 1
+        # print(Z_softmax)
+
+        grad = X_batch.T @ Z_softmax / batch
+        # print(grad)
+        theta -= lr * grad
+
     ### END YOUR CODE
+
+def relu(z):
+    return np.maximum(0, z)
+
+def relu_back(z):
+    return (z > 0).astype(float)
+
+def softmax(z):
+    exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
+    return exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
 
 def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
@@ -118,7 +163,22 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    num_examples = X.shape[0]
+    for start_idx in range(0, num_examples, batch):
+        end_idx = min(start_idx + batch, num_examples)
+        X_batch = X[start_idx:end_idx]
+        y_batch = y[start_idx:end_idx]
+
+        Z1 = X_batch @ W1
+        A1 = relu(Z1)
+        Z2 = A1 @ W2
+        A2 = softmax(Z2)
+        
+        GW2 = (A1.T @ (A2 - np.eye(W2.shape[1])[y_batch])) / batch
+        GW1 = (X_batch.T @ (relu_back(Z1) * ((A2 - np.eye(W2.shape[1])[y_batch]) @ W2.T))) / batch
+
+        W2 -= lr * GW2
+        W1 -= lr * GW1
     ### END YOUR CODE
 
 

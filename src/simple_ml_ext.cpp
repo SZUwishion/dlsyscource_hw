@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <cmath>
@@ -5,6 +6,18 @@
 
 namespace py = pybind11;
 
+float* mul(const float X[], float Y[], size_t m, size_t n, size_t k){
+    float *Z = new float[m * k];
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < k; j++) {
+            Z[i * k + j] = 0;
+            for (int l = 0; l < n; l++) {
+                Z[i * k + j] += X[i * n + l] * Y[l * k + j];
+            }
+        }
+    }
+    return Z;
+}
 
 void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
 								  float *theta, size_t m, size_t n, size_t k,
@@ -33,7 +46,29 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
-
+    int iterations = (m + batch - 1) / batch;
+    for (int iter = 0; iter < iterations; iter++) {
+        const float *x = &X[iter * batch * n]; // x: batch x n
+        float *Z = new float[batch * k];     // Z: batch x k
+        Z = mul(x, theta, batch, n, k);
+        for (int i = 0; i < batch * k; i++) Z[i] = exp(Z[i]); // element-wise exp
+        for (int i = 0; i < batch; i++) {
+            float sum = 0;
+            for (int j = 0; j < k; j++) sum += Z[i * k + j];
+            for (int j = 0; j < k; j++) Z[i * k + j] /= sum; // row-wise normalization
+        }
+        for (int i = 0; i < batch; i++) Z[i * k + y[iter * batch + i]] -= 1; // minus one-hot vector
+        float *x_T = new float[n * batch];
+        float *grad = new float[n * k];
+        for (int i = 0; i < batch; i++) 
+            for (int j = 0; j < n; j++) 
+                x_T[j * batch + i] = x[i * n + j];
+        grad = mul(x_T, Z, n, batch, k);
+        for (int i = 0; i < n * k; i++) theta[i] -= lr / batch * grad[i]; // SGD update
+        delete[] Z;
+        delete[] x_T;
+        delete[] grad;
+    }
     /// END YOUR CODE
 }
 
