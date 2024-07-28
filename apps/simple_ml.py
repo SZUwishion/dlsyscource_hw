@@ -102,10 +102,8 @@ def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
         Z2 = ndl.matmul(A1, W2)
         loss = softmax_loss(Z2, y_one_hot)
         loss.backward()
-        W1 = ndl.Tensor(W1.realize_cached_data() - lr * W1.grad.realize_cached_data())
-        W2 = ndl.Tensor(W2.realize_cached_data() - lr * W2.grad.realize_cached_data())
-        # W1 = W1 - lr * W1.grad
-        # W2 = W2 - lr * W2.grad
+        W1.data = W1.data - lr * W1.grad.data
+        W2.data = W2.data - lr * W2.grad.data
     return (W1, W2)
     ### END YOUR SOLUTION
 
