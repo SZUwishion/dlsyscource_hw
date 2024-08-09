@@ -11,6 +11,7 @@ namespace cuda {
 
 #define BASE_THREAD_NUM 256
 
+#define BLOCK_SIZE 2
 #define TILE 4
 typedef float scalar_t;
 const size_t ELEM_SIZE = sizeof(scalar_t);
@@ -431,30 +432,43 @@ void EwiseTanh(const CudaArray& a, CudaArray* out) {
 
 __global__ void MatmulKernel(const scalar_t* a, const scalar_t* b, scalar_t* out, uint32_t M,
                              uint32_t N, uint32_t P) {
-  size_t i = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t j = blockIdx.y * blockDim.y + threadIdx.y;
-  __shared__ scalar_t a_shared[TILE][TILE];
-  __shared__ scalar_t b_shared[TILE][TILE];
-  scalar_t sum = 0.0;
-  for(int k = 0; k < N; k += TILE) {
-    if(j < M && k + threadIdx.x < N) {
-      a_shared[threadIdx.y][threadIdx.x] = a[j * N + k + threadIdx.x];
-    } else {  
+  __shared__ scalar_t a_shared[BLOCK_SIZE][BLOCK_SIZE];
+  __shared__ scalar_t b_shared[BLOCK_SIZE][BLOCK_SIZE];
+
+  int x = blockIdx.x * blockDim.x + threadIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+  scalar_t sum = 0;
+  int idx;
+  for(int step = 0; step <= N / BLOCK_SIZE; step++)
+  {
+    int step_x = step * BLOCK_SIZE + threadIdx.x;
+    int step_y = y;
+    idx = step_y * N + step_x;
+    if(step_x >= N || step_y >= M) {
       a_shared[threadIdx.y][threadIdx.x] = 0.0;
-    }
-    if(i < P && k + threadIdx.y < N) {
-      b_shared[threadIdx.y][threadIdx.x] = b[(k + threadIdx.y) * P + i];
     } else {
+      a_shared[threadIdx.y][threadIdx.x] = a[idx];
+    }
+    step_x = x;
+    step_y = step * BLOCK_SIZE + threadIdx.y;
+    idx = step_y * P +step_x;
+    if(step_x >= P || step_y >= N) {
       b_shared[threadIdx.y][threadIdx.x] = 0.0;
+    } else {
+      b_shared[threadIdx.y][threadIdx.x] = b[idx];
+    }
+
+    __syncthreads();
+
+    for(int i = 0; i < BLOCK_SIZE; i++) {
+      sum += a_shared[threadIdx.y][i] * b_shared[i][threadIdx.x];
     }
     __syncthreads();
-    for(int kk = 0; kk < TILE; kk++) {
-      sum += a_shared[threadIdx.y][kk] * b_shared[kk][threadIdx.x];
-    }
-    __syncthreads();
-    if(j < M && i < P) {
-      out[j * P + i] = sum;
-    }
+  }
+
+  if (x < P && y < M){
+    out[y * P + x] = sum; 
   }
 }
 
@@ -483,8 +497,8 @@ void Matmul(const CudaArray& a, const CudaArray& b, CudaArray* out, uint32_t M, 
    */
 
   /// BEGIN SOLUTION
-  dim3 block(TILE, TILE, 1);
-  dim3 grid((M + TILE - 1) / TILE, (P + TILE - 1) / TILE, 1);
+  dim3 block(BLOCK_SIZE, BLOCK_SIZE, 1);
+  dim3 grid((P + BLOCK_SIZE - 1) / BLOCK_SIZE, (M + TILE - 1) / BLOCK_SIZE, 1);
   MatmulKernel<<<grid, block>>>(a.ptr, b.ptr, out->ptr, M, N, P);
   /// END SOLUTION
 }

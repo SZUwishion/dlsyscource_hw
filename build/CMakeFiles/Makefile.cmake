@@ -8,9 +8,9 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
   "/content/drive/MyDrive/10714/hw3/CMakeLists.txt"
-  "CMakeFiles/3.30.1/CMakeCCompiler.cmake"
-  "CMakeFiles/3.30.1/CMakeCXXCompiler.cmake"
-  "CMakeFiles/3.30.1/CMakeSystem.cmake"
+  "CMakeFiles/3.30.2/CMakeCCompiler.cmake"
+  "CMakeFiles/3.30.2/CMakeCXXCompiler.cmake"
+  "CMakeFiles/3.30.2/CMakeSystem.cmake"
   "CMakeFiles/ndarray_backend_cuda.dir/src/ndarray_backend_cuda_generated_ndarray_backend_cuda.cu.o.cmake.pre-gen"
   "CMakeFiles/ndarray_backend_cuda.dir/src/ndarray_backend_cuda_generated_ndarray_backend_cuda.cu.o.depend"
   "/usr/local/lib/python3.10/dist-packages/cmake/data/share/cmake-3.30/Modules/CMakeCInformation.cmake"
