@@ -5,13 +5,14 @@
 
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 namespace needle {
 namespace cuda {
 
 #define BASE_THREAD_NUM 256
 
-#define BLOCK_SIZE 2
+#define BLOCK_SIZE 8
 #define TILE 4
 typedef float scalar_t;
 const size_t ELEM_SIZE = sizeof(scalar_t);
@@ -439,36 +440,25 @@ __global__ void MatmulKernel(const scalar_t* a, const scalar_t* b, scalar_t* out
   int y = blockIdx.y * blockDim.y + threadIdx.y;
 
   scalar_t sum = 0;
-  int idx;
-  for(int step = 0; step <= N / BLOCK_SIZE; step++)
-  {
-    int step_x = step * BLOCK_SIZE + threadIdx.x;
-    int step_y = y;
-    idx = step_y * N + step_x;
-    if(step_x >= N || step_y >= M) {
-      a_shared[threadIdx.y][threadIdx.x] = 0.0;
+  for(int i = 0; i < (N + BLOCK_SIZE - 1) / BLOCK_SIZE; i++) {
+    if(y < M && i * BLOCK_SIZE + threadIdx.x < N) {
+      a_shared[threadIdx.y][threadIdx.x] = a[y * N + i * BLOCK_SIZE + threadIdx.x];
     } else {
-      a_shared[threadIdx.y][threadIdx.x] = a[idx];
+      a_shared[threadIdx.y][threadIdx.x] = 0.0f;
     }
-    step_x = x;
-    step_y = step * BLOCK_SIZE + threadIdx.y;
-    idx = step_y * P +step_x;
-    if(step_x >= P || step_y >= N) {
-      b_shared[threadIdx.y][threadIdx.x] = 0.0;
+    if(x < P && i * BLOCK_SIZE + threadIdx.y < N) {
+      b_shared[threadIdx.y][threadIdx.x] = b[(i * BLOCK_SIZE + threadIdx.y) * P + x];
     } else {
-      b_shared[threadIdx.y][threadIdx.x] = b[idx];
+      b_shared[threadIdx.y][threadIdx.x] = 0.0f;
     }
-
     __syncthreads();
-
-    for(int i = 0; i < BLOCK_SIZE; i++) {
-      sum += a_shared[threadIdx.y][i] * b_shared[i][threadIdx.x];
+    for(int j = 0; j < BLOCK_SIZE; j++) {
+      sum += a_shared[threadIdx.y][j] * b_shared[j][threadIdx.x];
     }
     __syncthreads();
   }
-
-  if (x < P && y < M){
-    out[y * P + x] = sum; 
+  if(x < P && y < M) {
+    out[y * P + x] = sum;
   }
 }
 
@@ -498,7 +488,7 @@ void Matmul(const CudaArray& a, const CudaArray& b, CudaArray* out, uint32_t M, 
 
   /// BEGIN SOLUTION
   dim3 block(BLOCK_SIZE, BLOCK_SIZE, 1);
-  dim3 grid((P + BLOCK_SIZE - 1) / BLOCK_SIZE, (M + TILE - 1) / BLOCK_SIZE, 1);
+  dim3 grid((P + BLOCK_SIZE - 1) / BLOCK_SIZE, (M + BLOCK_SIZE - 1) / BLOCK_SIZE, 1);
   MatmulKernel<<<grid, block>>>(a.ptr, b.ptr, out->ptr, M, N, P);
   /// END SOLUTION
 }
