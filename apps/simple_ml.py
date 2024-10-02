@@ -12,7 +12,7 @@ import needle as ndl
 import needle.nn as nn
 from apps.models import *
 import time
-device = ndl.cpu()
+device = ndl.cuda()
 
 def parse_mnist(image_filesname, label_filename):
     """Read an images and labels file in MNIST format.  See this page:
@@ -37,7 +37,15 @@ def parse_mnist(image_filesname, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    with gzip.open(image_filesname, 'rb') as imgf:
+        imgf.read(16)
+        X = np.frombuffer(imgf.read(), dtype=np.uint8).reshape(-1, 784).astype(np.float32)
+        X -= np.min(X)
+        X /= np.max(X)
+    with gzip.open(label_filename, 'rb') as labelf:
+        labelf.read(8)
+        y = np.frombuffer(labelf.read(), dtype=np.uint8)
+    return X, y
     ### END YOUR SOLUTION
 
 
@@ -110,12 +118,31 @@ def epoch_general_cifar10(dataloader, model, loss_fn=nn.SoftmaxLoss(), opt=None)
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    acc = 0
+    avg_loss = 0
+    if opt is not None:
+        model.train()
+        for X, y in dataloader:
+            X, y = ndl.Tensor(X, device=device), ndl.Tensor(y, device=device)
+            out = model(X)
+            loss = loss_fn(out, y)
+            loss.backward()
+            opt.step()
+            avg_loss += loss.numpy()
+            acc += np.sum(out.numpy().argmax(axis=1) == y.numpy())
+    else:
+        model.eval()
+        for X, y in dataloader:
+            X, y = ndl.Tensor(X, device=device), ndl.Tensor(y, device=device)
+            out = model(X)
+            avg_loss += loss_fn(out, y).numpy()
+            acc += np.sum(out.numpy().argmax(axis=1) == y.numpy())
+    return acc / len(dataloader.dataset), avg_loss / len(dataloader.dataset)
     ### END YOUR SOLUTION
 
 
 def train_cifar10(model, dataloader, n_epochs=1, optimizer=ndl.optim.Adam,
-          lr=0.001, weight_decay=0.001, loss_fn=nn.SoftmaxLoss):
+          lr=0.001, weight_decay=0.001, loss_fn=nn.SoftmaxLoss()):
     """
     Performs {n_epochs} epochs of training.
 
@@ -134,11 +161,15 @@ def train_cifar10(model, dataloader, n_epochs=1, optimizer=ndl.optim.Adam,
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for i in range(n_epochs):
+        opt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)
+        avg_acc, avg_loss = epoch_general_cifar10(dataloader, model, loss_fn, opt)
+        print(f"Epoch {i + 1}: avg_acc = {avg_acc}, avg_loss = {avg_loss}")
+    return avg_acc, avg_loss
     ### END YOUR SOLUTION
 
 
-def evaluate_cifar10(model, dataloader, loss_fn=nn.SoftmaxLoss):
+def evaluate_cifar10(model, dataloader, loss_fn=nn.SoftmaxLoss()):
     """
     Computes the test accuracy and loss of the model.
 
@@ -153,7 +184,9 @@ def evaluate_cifar10(model, dataloader, loss_fn=nn.SoftmaxLoss):
     """
     np.random.seed(4)
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    acc, loss = epoch_general_cifar10(dataloader, model, loss_fn)
+    print(f"Test accuracy: {acc}, Test loss: {loss}")
+    return acc, loss
     ### END YOUR SOLUTION
 
 

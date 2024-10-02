@@ -14,8 +14,8 @@ TENSOR_COUNTER = 0
 # NOTE: we will import numpy as the array_api
 # as the backend for our computations, this line will change in later homeworks
 
-import numpy as array_api
-NDArray = numpy.ndarray
+# import numpy as array_api
+# NDArray = numpy.ndarray
 
 from .backend_selection import array_api, NDArray, default_device
 
@@ -381,7 +381,16 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for node in reverse_topo_order:
+        grad = sum_node_list(node_to_output_grads_list[node])
+        node.grad = grad
+        if node.op is None:
+            continue
+        input_grads = node.op.gradient_as_tuple(grad, node)
+        for i, input in enumerate(node.inputs):
+            if input not in node_to_output_grads_list:
+                node_to_output_grads_list[input] = []
+            node_to_output_grads_list[input].append(input_grads[i])
     ### END YOUR SOLUTION
 
 
@@ -394,14 +403,23 @@ def find_topo_sort(node_list: List[Value]) -> List[Value]:
     sort.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    visited = set()
+    topo_order = []
+    for node in node_list:
+        topo_sort_dfs(node, visited, topo_order)
+    return topo_order
     ### END YOUR SOLUTION
 
 
 def topo_sort_dfs(node, visited, topo_order):
     """Post-order DFS"""
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    if node in visited:
+        return
+    for input in node.inputs:
+        topo_sort_dfs(input, visited, topo_order)
+    visited.add(node)
+    topo_order.append(node)
     ### END YOUR SOLUTION
 
 

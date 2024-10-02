@@ -1,15 +1,17 @@
 cmake_minimum_required(VERSION 3.5)
 project(needle C CXX)
-cmake_policy(SET CMP0146 OLD)
+# cmake_policy(SET CMP0146 OLD)
 
 # find correct version of Python
-execute_process(COMMAND python3-config --prefix
-  OUTPUT_VARIABLE Python_ROOT_DIR)
+set(Python_EXECUTABLE "/home/wishion/anaconda3/envs/dlsyscourse/bin/python")
+execute_process(COMMAND ${Python_EXECUTABLE} -c "import sys; print(sys.prefix)"
+  OUTPUT_VARIABLE Python_ROOT_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 find_package(Python COMPONENTS Development Interpreter REQUIRED)
 include_directories(${Python_INCLUDE_DIRS})
 
 # find pybind
-execute_process(COMMAND python3 -m pybind11 --cmakedir
+execute_process(COMMAND ${Python_EXECUTABLE} -m pybind11 --cmakedir
   RESULT_VARIABLE __pybind_exit_code
   OUTPUT_VARIABLE __pybind_path
   OUTPUT_STRIP_TRAILING_WHITESPACE)
